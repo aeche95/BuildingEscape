@@ -2,9 +2,12 @@
 
 
 #include "OpenDoor.h"
+#include "Components/AudioComponent.h"
+#include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 
+#define OUT
 // Sets default values for this component's properties
 UOpenDoor::UOpenDoor()
 {
@@ -24,12 +27,8 @@ void UOpenDoor::BeginPlay()
 	CurrentYaw = InitialYaw;
 	TargetYaw += InitialYaw;
 	
-	if (!PressureTrigger)
-	{
-		UE_LOG(LogTemp, Error, TEXT("Pressure trigger not set in actor %s"), *GetOwner()->GetName());
-	}
-
-	ActorOpening = GetWorld()->GetFirstPlayerController()->GetPawn();
+	
+	FindAudioComponent();
 }
 
 
@@ -38,7 +37,7 @@ void UOpenDoor::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompon
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 	
-	if (PressureTrigger->IsOverlappingActor(ActorOpening))
+	if (TotalMassOfActors() > MassRequiredToOpen)
 	{
 		OpenDoor(DeltaTime);
 		DoorLastOpened = GetWorld()->GetTimeSeconds();
@@ -49,9 +48,7 @@ void UOpenDoor::TickComponent(float DeltaTime, ELevelTick TickType, FActorCompon
 		{
 			CloseDoor(DeltaTime);
 		}
-		
 	}
-	
 }
 
 void UOpenDoor::OpenDoor(float DeltaTime)
@@ -60,6 +57,14 @@ void UOpenDoor::OpenDoor(float DeltaTime)
 	FRotator DoorRotation = GetOwner()->GetActorRotation();
 	DoorRotation.Yaw = CurrentYaw;
 	GetOwner()->SetActorRotation(DoorRotation);
+	CloseDoorSound = false;
+	if(!AudioComponent) {return;}
+	if(!OpenDoorSound)
+	{
+		AudioComponent->Play();
+		OpenDoorSound = true;
+	}
+	
 }
 
 void UOpenDoor::CloseDoor(float DeltaTime)
@@ -68,5 +73,42 @@ void UOpenDoor::CloseDoor(float DeltaTime)
 	FRotator DoorRotation = GetOwner()->GetActorRotation();
 	DoorRotation.Yaw = CurrentYaw;
 	GetOwner()->SetActorRotation(DoorRotation);
+	OpenDoorSound = false;
+	if(!AudioComponent) {return;}
+	if(!CloseDoorSound)
+	{
+		AudioComponent->Play();
+		CloseDoorSound = true;
+	}
+	
 }
 
+float UOpenDoor::TotalMassOfActors() const
+{
+	float TotalMass = 0.f;
+	TArray<AActor*> OverlappingActors;
+	if (!PressureTrigger) {return TotalMass;}
+	PressureTrigger->GetOverlappingActors(OUT OverlappingActors);
+	for(AActor* Actor : OverlappingActors)
+	{
+		TotalMass += Actor->FindComponentByClass<UPrimitiveComponent>()->GetMass();
+	}
+	return TotalMass;
+}
+
+void UOpenDoor::FindAudioComponent()
+{
+	AudioComponent = GetOwner()->FindComponentByClass<UAudioComponent>();
+	if(!AudioComponent)
+	{
+		UE_LOG(LogTemp,Error,TEXT("%s missing audio component!"),*GetOwner()->GetName());
+	}
+}
+
+void UOpenDoor::FindPressureTrigger()
+{
+	if (!PressureTrigger)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Pressure trigger not set in actor %s"), *GetOwner()->GetName());
+	}
+}

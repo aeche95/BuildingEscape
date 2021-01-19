@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "PhysicsEngine/PhysicsHandleComponent.h"
 #include "Grabber.generated.h"
 
 
@@ -19,6 +20,21 @@ public:
 protected:
 	// Called when the game starts
 	virtual void BeginPlay() override;
+
+private:
+	UPROPERTY(EditAnywhere)
+	float Reach = 100.f;
+	UPROPERTY()
+	UPhysicsHandleComponent* PhysicsHandle = nullptr;
+	UPROPERTY()
+	UInputComponent* InputComponent = nullptr;
+	void FindPhysicsComponent();
+	void SetInputComponent();
+	FHitResult GetFirstPhysicsBodyInReach();
+	void Grab();
+	void Release();
+	FVector GetPlayerReach() const;
+	FVector GetPlayerWorldPos() const;
 
 public:	
 	// Called every frame
